@@ -2263,6 +2263,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "zokrates_adsnark_cli"
+version = "0.4.11"
+dependencies = [
+ "assert_cli 0.5.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bincode 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "zokrates_core 0.3.14",
+ "zokrates_field 0.3.3",
+ "zokrates_fs_resolver 0.4.1",
+ "zokrates_github_resolver 0.1.0",
+]
+
+[[package]]
 name = "zokrates_cli"
 version = "0.4.11"
 dependencies = [
