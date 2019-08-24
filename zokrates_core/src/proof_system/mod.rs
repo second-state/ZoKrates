@@ -8,6 +8,8 @@ pub use self::bn128::G16;
 pub use self::bn128::GM17;
 #[cfg(feature = "libsnark")]
 pub use self::bn128::PGHR13;
+#[cfg(feature = "libsnark")]
+pub use self::bn128::BBFR15;
 
 use crate::ir;
 use std::io::BufReader;

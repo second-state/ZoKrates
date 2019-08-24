@@ -551,6 +551,32 @@ fn cli() -> Result<(), String> {
                 .map_err(|why| format!("could not save witness: {:?}", why))?;
         }
         ("scheme-setup", Some(sub_matches)) => {
+            let scheme = &BBFR15 {};
+
+            println!("Performing scheme setup...");
+
+            let path = Path::new(sub_matches.value_of("input").unwrap());
+            let file = File::open(&path)
+                .map_err(|why| format!("couldn't open {}: {}", path.display(), why))?;
+
+            let mut reader = BufReader::new(file);
+
+            let program: ir::Prog<FieldPrime> =
+                deserialize_from(&mut reader, Infinite).map_err(|why| format!("{:?}", why))?;
+
+            // print deserialized flattened program
+            if !sub_matches.is_present("light") {
+                println!("{}", program);
+            }
+
+            // get paths for proving keys, verification keys, and authentication parameters
+            let pk_path = sub_matches.value_of("proving-key-path").unwrap();
+            let vk_path = sub_matches.value_of("verification-key-path").unwrap();
+            let auth_pap_path = sub_matches.value_of("authentication-parameters-path").unwrap();
+            // run setup phase
+            scheme.setup(program, pk_path, vk_path, auth_pap_path);
+
+            println!("Scheme setup done")
         }
         ("export-verifier", Some(_)) => {
             {
@@ -558,14 +584,141 @@ fn cli() -> Result<(), String> {
             }
         }
         ("generate-proof", Some(sub_matches)) => {
+            println!("Generating proof...");
+
+            let scheme = &BBFR15 {};
+
+            // deserialize witness
+            let witness_path = Path::new(sub_matches.value_of("witness").unwrap());
+            let witness_file = match File::open(&witness_path) {
+                Ok(file) => file,
+                Err(why) => panic!("couldn't open {}: {}", witness_path.display(), why),
+            };
+
+            let witness = ir::Witness::read(witness_file)
+                .map_err(|why| format!("could not load witness: {:?}", why))?;
+
+            //get path from files
+            let pk_path = sub_matches.value_of("provingkey").unwrap();
+            let json_proof_path = sub_matches.value_of("jsonproofpath").unwrap();
+            let proof_path = sub_matches.value_of("proofpath").unwrap();
+            let authdata_path = sub_matches.value_of("authenticated-data-path").unwrap();
+
+            let program_path = Path::new(sub_matches.value_of("input").unwrap());
+            let program_file = File::open(&program_path)
+                .map_err(|why| format!("couldn't open {}: {}", program_path.display(), why))?;
+
+            let mut reader = BufReader::new(program_file);
+
+            let program: ir::Prog<FieldPrime> =
+                deserialize_from(&mut reader, Infinite).map_err(|why| format!("{:?}", why))?;
+
+            println!(
+                "generate-proof successful: {:?}",
+                scheme.generate_proof(program, witness, pk_path, proof_path, authdata_path, json_proof_path)
+            );
         }
         ("auth-setup", Some(sub_matches)) => {
+            println!("Start authentication setup...");
+
+            let scheme = &BBFR15 {};
+
+            //get path from files
+            let pk_path = sub_matches.value_of("auth-public-key-path").unwrap();
+            let sk_path = sub_matches.value_of("auth-private-key-path").unwrap();
+            let pap_path = sub_matches.value_of("authentication-parameters-path").unwrap();
+            //run setup phase
+            scheme.auth_setup(pk_path, sk_path, pap_path);
+
+            println!("Authentication setup done");
         }
         ("auth-sign", Some(sub_matches)) => {
+            println!("Start signing...");
+
+            let scheme = &BBFR15 {};
+
+            //get path from files
+            let label_path = sub_matches.value_of("label-path").unwrap();
+            let sk_path = sub_matches.value_of("auth-private-key-path").unwrap();
+            let authdata_path = sub_matches.value_of("authenticated-data-path").unwrap();
+            let expected_cli_args_count =  sub_matches.value_of("arguments-count").unwrap().parse::<usize>().unwrap_or(0);
+
+            if expected_cli_args_count <= 0 {
+                Err(
+                    "No variables to sign!"
+                )?
+            }
+
+            let arguments: Vec<_> = match sub_matches.values_of("arguments") {
+                // take inline arguments
+                Some(p) => p
+                    .map(|x| FieldPrime::try_from_dec_str(x).map_err(|_| x.to_string()))
+                    .collect(),
+                // take stdin arguments
+                None => {
+                    if expected_cli_args_count > 0 {
+                        let mut stdin = stdin();
+                        let mut input = String::new();
+                        match stdin.read_to_string(&mut input) {
+                            Ok(_) => {
+                                input.retain(|x| x != '\n');
+                                input
+                                    .split(" ")
+                                    .map(|x| {
+                                        FieldPrime::try_from_dec_str(x).map_err(|_| x.to_string())
+                                    })
+                                    .collect()
+                            }
+                            Err(_) => Err(String::from("???")),
+                        }
+                    } else {
+                        Ok(vec![])
+                    }
+                }
+            }
+            .map_err(|e| format!("Could not parse argument: {}", e))?;
+
+            if arguments.len() != expected_cli_args_count {
+                Err(format!(
+                    "Wrong number of arguments. Given: {}, Required: {}.",
+                    arguments.len(),
+                    expected_cli_args_count
+                ))?
+            }
+
+            //Sign arguments with labels
+            scheme.auth_sign(&arguments, sk_path, label_path, authdata_path);
+            println!("Signing process success, {} arguments signed", arguments.len());
         }
         ("verify-signature", Some(sub_matches)) => {
+            println!("Start verifying signatures...");
+
+            let scheme = &BBFR15 {};
+
+            //get path from files
+            let label_path = sub_matches.value_of("label-path").unwrap();
+            let auth_pk_path = sub_matches.value_of("auth-public-key-path").unwrap();
+            let authdata_path = sub_matches.value_of("authenticated-data-path").unwrap();
+
+            //Verifies signature
+            let result = scheme.verify_signature(auth_pk_path, label_path, authdata_path);
+            println!("Signature verification result : {}", result);
         }
         ("verify-proof", Some(sub_matches)) => {
+            println!("Start verifying proof...");
+
+            let scheme = &BBFR15 {};
+
+            //get path from files
+            let label_path = sub_matches.value_of("label-path").unwrap();
+            let auth_pk_path = sub_matches.value_of("auth-public-key-path").unwrap();
+            let authdata_path = sub_matches.value_of("authenticated-data-path").unwrap();
+            let vk_path = sub_matches.value_of("verification-key").unwrap();
+            let proof_path = sub_matches.value_of("proofpath").unwrap();
+
+            //Verifies full proof
+            let result = scheme.verify_proof(vk_path, auth_pk_path, label_path, authdata_path, proof_path);
+            println!("Proof verification result : {}", result);
         }
         _ => unreachable!(),
     }
