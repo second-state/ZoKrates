@@ -192,6 +192,32 @@ pub fn prepare_generate_proof<T: Field>(
     )
 }
 
+pub fn prepare_auth_sign<T: Field>(
+    arguments: &Vec<T>,
+    sk_path: &str,
+    label_path: &str,
+    authdata_path: &str,
+) -> (Vec<[u8; 32]>, usize, CString, CString, CString){
+
+    let sk_path_cstring = CString::new(sk_path).unwrap();
+    let label_path_cstring = CString::new(label_path).unwrap();
+    let authdata_path_cstring = CString::new(authdata_path).unwrap();
+
+    let arguments_length = arguments.len();
+    let mut arguments_arr: Vec<[u8; 32]> = vec![[0u8; 32]; arguments_length];
+    for (index, value) in arguments.into_iter().enumerate() {
+        arguments_arr[index] = vec_as_u8_32_array(&value.into_byte_vector());
+    }
+
+    (
+        arguments_arr,
+        arguments_length,
+        sk_path_cstring,
+        label_path_cstring,
+        authdata_path_cstring,
+    )
+}
+
 /// Returns the index of `var` in `variables`, adding `var` with incremented index if it not yet exists.
 ///
 /// # Arguments

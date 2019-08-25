@@ -58,6 +58,7 @@ fn main() {
             .file("lib/util.cpp")
             .file("lib/gm17.cpp")
             .file("lib/pghr13.cpp")
+            .file("lib/bbfr15.cpp")
             .compile("libwraplibsnark.a");
 
         println!(
